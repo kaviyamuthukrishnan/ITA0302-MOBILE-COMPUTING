@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>FixPoint — Community Issue Reporting &amp; Resolution</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" />
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<!-- ============ AUTH SCREEN ============ -->
+<section id="screen-auth" class="auth-screen">
+  <div class="auth-grid-bg" aria-hidden="true"></div>
+  <div class="auth-card">
+    <div class="brand brand-center">
+      <span class="brand-mark">FP</span>
+      <div class="brand-text">
+        <span class="brand-name">FIXPOINT</span>
+        <span class="brand-tag">Pin it. Track it. Fixed.</span>
+      </div>
+    </div>
+
+    <div class="auth-role-tabs">
+      <button class="role-tab active" data-role="citizen">Citizen</button>
+      <button class="role-tab" data-role="worker">Worker</button>
+      <button class="role-tab" data-role="admin">Department</button>
+    </div>
+
+    <div class="auth-mode-tabs" id="auth-mode-tabs">
+      <button class="mode-tab active" data-mode="login">Log in</button>
+      <button class="mode-tab" data-mode="signup">Sign up</button>
+    </div>
+
+    <!-- LOGIN FORM -->
+    <form id="login-form" class="auth-form">
+      <div id="login-district-field" hidden>
+        <label>District (optional — fills the email for you)</label>
+        <select id="login-district-picker">
+          <option value="">Super-admin (all districts)</option>
+        </select>
+      </div>
+      <label>Email</label>
+      <input type="email" id="login-email" required />
+      <label>Password</label>
+      <input type="password" id="login-password" required />
+      <div id="login-error" class="form-error" hidden></div>
+      <button type="submit" class="btn btn-amber btn-block">Log in</button>
+      <p class="auth-hint" id="login-hint">Super-admin — email: <span class="mono">admin@fixpoint.local</span>, password: <span class="mono">admin123</span>. District admins — email: <span class="mono">admin.&lt;district&gt;@fixpoint.local</span> (e.g. <span class="mono">admin.tiruchirappalli@fixpoint.local</span>), same password.</p>
+    </form>
+
+    <!-- SIGNUP FORM -->
+    <form id="signup-form" class="auth-form" hidden>
+      <label>Full name</label>
+      <input type="text" id="signup-name" required />
+      <label>Email</label>
+      <input type="email" id="signup-email" required />
+      <label>Phone (optional)</label>
+      <input type="tel" id="signup-phone" />
+      <label>District</label>
+      <select id="signup-district" required>
+        <option value="" disabled selected>Select your district</option>
+      </select>
+      <div id="signup-category-field" hidden>
+        <label>Work category</label>
+        <select id="signup-category">
+          <option value="" disabled selected>Select your category</option>
+        </select>
+        <p class="field-note">You'll only be assigned jobs filed under this category.</p>
+      </div>
+      <label>Password</label>
+      <input type="password" id="signup-password" required minlength="6" />
+      <div id="signup-error" class="form-error" hidden></div>
+      <button type="submit" class="btn btn-amber btn-block">Create account</button>
+    </form>
+  </div>
+</section>
+
+<!-- ============ SHARED TOPBAR (dashboards) ============ -->
+<header class="topbar" id="dash-topbar" hidden>
+  <div class="brand">
+    <span class="brand-mark">FP</span>
+    <div class="brand-text">
+      <span class="brand-name">FIXPOINT</span>
+      <span class="brand-tag" id="dash-role-tag">Citizen</span>
+    </div>
+  </div>
+  <nav class="view-switch" id="dash-nav"></nav>
+  <div class="topbar-right">
+    <span class="user-chip" id="user-chip"></span>
+    <button class="btn btn-ghost-dark btn-sm" id="logout-btn">Log out</button>
+  </div>
+</header>
+
+<!-- ============ CITIZEN DASHBOARD ============ -->
+<main id="screen-citizen" class="dash" hidden>
+
+  <section id="page-citizen-raise" class="dash-page">
+      <div class="panel form-panel">
+        <h2 class="panel-title">File a report</h2>
+        <form id="issue-form">
+          <div class="field">
+            <label class="field-num">01</label>
+            <div class="field-body">
+              <label for="f-category">Category</label>
+              <select id="f-category" required>
+                <option value="" disabled selected>Select an issue type</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="field">
+            <label class="field-num">02</label>
+            <div class="field-body">
+              <label>Location</label>
+              <div class="loc-row">
+                <button type="button" class="btn btn-outline" id="use-location-btn">Use my GPS</button>
+                <span class="loc-readout" id="loc-readout">Not set — use GPS or tap the map</span>
+              </div>
+              <div id="pick-map" class="pick-map"></div>
+              <input type="text" id="f-address" placeholder="Landmark or address (optional)" />
+            </div>
+          </div>
+
+          <div class="field">
+            <label class="field-num">03</label>
+            <div class="field-body">
+              <label>Photo</label>
+              <div class="photo-row">
+                <button type="button" class="btn btn-outline" id="open-camera-btn">Open live camera</button>
+                <label class="btn btn-outline" for="f-photo-file">Upload / take photo</label>
+                <input type="file" id="f-photo-file" accept="image/*" capture="environment" hidden />
+              </div>
+              <div id="camera-wrap" class="camera-wrap" hidden>
+                <video id="camera-video" autoplay playsinline muted></video>
+                <div class="camera-controls">
+                  <button type="button" class="btn btn-amber btn-sm" id="capture-btn">Capture</button>
+                  <button type="button" class="btn btn-outline btn-sm" id="cancel-camera-btn">Cancel</button>
+                </div>
+              </div>
+              <canvas id="camera-canvas" hidden></canvas>
+              <img id="photo-preview" class="photo-preview" hidden />
+            </div>
+          </div>
+
+          <div class="field">
+            <label class="field-num">04</label>
+            <div class="field-body">
+              <label for="f-desc">Description</label>
+              <textarea id="f-desc" rows="3" placeholder="What's wrong, and how bad is it?" required></textarea>
+            </div>
+          </div>
+
+          <div id="form-error" class="form-error" hidden></div>
+          <button type="submit" class="btn btn-amber btn-block">Submit report</button>
+        </form>
+      </div>
+  </section>
+
+  <section id="page-citizen-mine" class="dash-page" hidden>
+    <div class="panel">
+      <h2 class="panel-title">My complaints</h2>
+      <div id="my-complaints-list" class="ticket-list"></div>
+    </div>
+  </section>
+
+  <section id="page-citizen-messages" class="dash-page" hidden>
+    <div class="panel chat-panel">
+      <h2 class="panel-title">Messages with the Department</h2>
+      <div id="citizen-chat-log" class="chat-log"></div>
+      <form id="citizen-chat-form" class="chat-form">
+        <input type="text" id="citizen-chat-input" placeholder="Write a message…" required />
+        <button type="submit" class="btn btn-amber btn-sm">Send</button>
+      </form>
+    </div>
+  </section>
+
+  <section id="page-citizen-profile" class="dash-page" hidden>
+    <div class="panel" id="citizen-profile-panel"></div>
+  </section>
+</main>
+
+<!-- ============ ADMIN DASHBOARD ============ -->
+<main id="screen-admin" class="dash" hidden>
+
+  <section id="page-admin-review" class="dash-page">
+    <div class="panel">
+      <h2 class="panel-title">Review new complaints</h2>
+      <div id="admin-review-list" class="ticket-list"></div>
+    </div>
+  </section>
+
+  <section id="page-admin-approvals" class="dash-page" hidden>
+    <div class="two-col">
+      <div class="panel">
+        <h2 class="panel-title">Yet to approve</h2>
+        <div id="admin-pending-list" class="ticket-list"></div>
+      </div>
+      <div class="panel">
+        <h2 class="panel-title">Approved — assign a worker</h2>
+        <div id="admin-approved-list" class="ticket-list"></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="page-admin-tracking" class="dash-page" hidden>
+    <div class="panel">
+      <h2 class="panel-title">Jobs in progress</h2>
+      <div id="admin-tracking-list" class="ticket-list"></div>
+    </div>
+    <div class="panel">
+      <h2 class="panel-title">Enrolled workers</h2>
+      <div id="admin-workers-list" class="worker-grid"></div>
+    </div>
+  </section>
+
+  <section id="page-admin-completed" class="dash-page" hidden>
+    <div class="panel">
+      <h2 class="panel-title">Completed &amp; closed</h2>
+      <div id="admin-completed-list" class="ticket-list"></div>
+    </div>
+  </section>
+
+  <section id="page-admin-feedback" class="dash-page" hidden>
+    <div class="two-col">
+      <div class="panel">
+        <h2 class="panel-title">Conversations</h2>
+        <div id="admin-thread-list" class="thread-list"></div>
+      </div>
+      <div class="panel chat-panel">
+        <h2 class="panel-title" id="admin-chat-title">Select a conversation</h2>
+        <div id="admin-chat-log" class="chat-log"></div>
+        <form id="admin-chat-form" class="chat-form" hidden>
+          <input type="text" id="admin-chat-input" placeholder="Write a reply…" required />
+          <button type="submit" class="btn btn-amber btn-sm">Send</button>
+        </form>
+      </div>
+    </div>
+  </section>
+
+  <section id="page-admin-overview" class="dash-page" hidden>
+    <div class="panel">
+      <h2 class="panel-title">Overview</h2>
+      <div class="analytics-grid">
+        <div class="analytics-block"><h3>By status</h3><div id="bars-status" class="bars"></div></div>
+        <div class="analytics-block"><h3>By category</h3><div id="bars-category" class="bars"></div></div>
+      </div>
+    </div>
+    <div class="panel">
+      <h2 class="panel-title">All-issue map</h2>
+      <div id="admin-map" class="main-map"></div>
+    </div>
+  </section>
+</main>
+
+<!-- ============ WORKER DASHBOARD ============ -->
+<main id="screen-worker" class="dash" hidden>
+
+  <section id="page-worker-assignments" class="dash-page">
+    <div class="panel">
+      <h2 class="panel-title">Assigned to me</h2>
+      <div id="worker-assignments-list" class="ticket-list"></div>
+    </div>
+  </section>
+
+  <section id="page-worker-active" class="dash-page" hidden>
+    <div class="panel">
+      <h2 class="panel-title">My scheduled &amp; active jobs</h2>
+      <div id="worker-active-list" class="ticket-list"></div>
+    </div>
+  </section>
+
+  <section id="page-worker-messages" class="dash-page" hidden>
+    <div class="panel chat-panel">
+      <h2 class="panel-title">Messages with the Department</h2>
+      <div id="worker-chat-log" class="chat-log"></div>
+      <form id="worker-chat-form" class="chat-form">
+        <input type="text" id="worker-chat-input" placeholder="Write a message…" required />
+        <button type="submit" class="btn btn-amber btn-sm">Send</button>
+      </form>
+    </div>
+  </section>
+
+  <section id="page-worker-profile" class="dash-page" hidden>
+    <div class="panel" id="worker-profile-panel"></div>
+    <div class="panel">
+      <button class="btn btn-outline" id="enable-sound-btn">🔔 Enable assignment alerts (sound)</button>
+      <p class="field-note">Browsers block sound until you interact with the page once — tap this so the buzzer alert can play.</p>
+    </div>
+  </section>
+</main>
+
+<!-- ============ BUZZER ALARM OVERLAY ============ -->
+<div id="alarm-overlay" class="alarm-overlay" hidden>
+  <div class="alarm-content">
+    <p class="alarm-text">you have been<br/>appointed a<br/>work</p>
+    <div class="alarm-details" id="alarm-details"></div>
+    <div class="alarm-actions">
+      <button class="btn btn-alarm-accept" id="alarm-accept-btn">Accept &amp; schedule</button>
+      <button class="btn btn-alarm-dismiss" id="alarm-dismiss-btn">Dismiss for now</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ SCHEDULE MODAL ============ -->
+<div id="schedule-modal" class="modal-overlay" hidden>
+  <div class="modal-card">
+    <h3>Schedule this job</h3>
+    <label for="schedule-datetime">When will you get to it?</label>
+    <input type="datetime-local" id="schedule-datetime" required />
+    <div class="modal-actions">
+      <button class="btn btn-outline btn-sm" id="schedule-cancel-btn">Cancel</button>
+      <button class="btn btn-amber btn-sm" id="schedule-confirm-btn">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast" class="toast" hidden></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+<script src="js/utils.js"></script>
+<script src="js/camera.js"></script>
+<script src="js/auth-ui.js"></script>
+<script src="js/citizen.js"></script>
+<script src="js/admin.js"></script>
+<script src="js/worker.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
